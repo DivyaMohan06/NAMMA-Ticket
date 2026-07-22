@@ -48,6 +48,11 @@ export default function Home() {
   const [passengers, setPassengers] = useState(1);
   const [supportOpen, setSupportOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [shaktiOpen, setShaktiOpen] = useState(false);
+  const [aadhaar, setAadhaar] = useState("");
+  const [aadhaarConsent, setAadhaarConsent] = useState(false);
+  const [shaktiVerified, setShaktiVerified] = useState(false);
+  const [verificationError, setVerificationError] = useState("");
   const [journeyTab, setJourneyTab] = useState<"active" | "past" | "refunds">("active");
   const [refundRequested, setRefundRequested] = useState(false);
   const [chatAnswer, setChatAnswer] = useState("Hi! I’m Namma AI. Choose a question below and I’ll help you right away.");
@@ -55,7 +60,8 @@ export default function Home() {
   const routes = useMemo(() => (routeFamilies[to] || routeFamilies[stops[4]]).map((bus, index) => ({ bus, time: `08:${String(42 + index * 8).padStart(2,"0")}`, minutes: 3 + index * 8, seats: index === 1 ? (lang === "en" ? "Standing likely" : "ನಿಲ್ಲಬೇಕಾಗಬಹುದು") : (lang === "en" ? "Seats available" : "ಆಸನಗಳು ಲಭ್ಯ"), tag: bus.startsWith("KIA") || bus.startsWith("V-") ? "Vayu Vajra" : "Ordinary" })), [to, lang]);
   const [selectedBusId, setSelectedBusId] = useState("");
   const selectedBus = routes.find(route => route.bus === selectedBusId) || routes[0];
-  const fare = passengers * (18 + Math.max(1, Math.abs(stops.indexOf(from) - stops.indexOf(to))) * 4);
+  const regularFare = passengers * (18 + Math.max(1, Math.abs(stops.indexOf(from) - stops.indexOf(to))) * 4);
+  const fare = shaktiVerified ? 0 : regularFare;
   const stopName = (stop: string) => lang === "kn" ? stopKannada[stop] : stop;
 
   function swapStops() {
@@ -85,6 +91,12 @@ export default function Home() {
       "My payment failed": "Check whether money was debited. If yes, wait 30 seconds and check Active tickets. Otherwise retry payment or contact Namma Support."
     };
     setChatAnswer(answers[question] || "Please contact Namma Support at 080-2248 3777 for more help.");
+  }
+
+  function verifyShaktiEligibility() {
+    const digits = aadhaar.replace(/\D/g, "");
+    if (digits.length !== 12 || !aadhaarConsent) { setVerificationError("Enter a valid 12-digit Aadhaar number and accept the consent checkbox."); return; }
+    setVerificationError(""); setShaktiVerified(true); setAadhaar("");
   }
 
   return (
@@ -123,6 +135,10 @@ export default function Home() {
 
         <section className="stats"><div><b>1.2M+</b><span>daily BMTC commuters</span></div><div><b>&lt; 30 sec</b><span>to book your ticket</span></div><div><b>0 queues</b><span>just scan &amp; ride</span></div></section>
 
+        <section className={`shakti-section ${shaktiVerified ? "verified" : ""}`}>
+          <div className="shakti-mark">ಶ</div><div><span className="mini-label">SHAKTI FREE TRAVEL</span><h2>{shaktiVerified ? "Your Shakti eligibility is verified." : "Eligible women travel free."}</h2><p>{shaktiVerified ? "Your eligible BMTC journeys will automatically show a ₹0 fare. Keep an original government ID available during travel." : "Verify your identity once to apply eligible free-travel benefits to BMTC ordinary services."}</p><small>Prototype only · Aadhaar details are not saved on this device.</small></div><button className={shaktiVerified ? "verified-button" : "shakti-button"} onClick={() => setShaktiOpen(true)}>{shaktiVerified ? "✓ Verified" : "Verify eligibility →"}</button>
+        </section>
+
         <section className="how" id="how">
           <div><span className="mini-label">EASY AS 1, 2, 3</span><h2>From stop to seat,<br/>without the wait.</h2></div>
           <div className="steps"><article><b>01</b><div className="step-icon">⌖</div><h3>Choose your route</h3><p>Pick where you’re boarding and where you’re headed.</p></article><article><b>02</b><div className="step-icon">₹</div><h3>Pay your way</h3><p>Use any UPI app or card. It’s fast and secure.</p></article><article><b>03</b><div className="step-icon">▦</div><h3>Show &amp; ride</h3><p>Show your QR ticket when the conductor asks. Done.</p></article></div>
@@ -143,7 +159,7 @@ export default function Home() {
         <button className="back" onClick={() => setStep("search")}>← {t.change}</button>
         <div className="flow-title"><div><span className="mini-label">YOUR ROUTE</span><h1>{t.choose}</h1><p>{stopName(from)} <b>→</b> {stopName(to)}</p></div><div className="fare-pill"><span>{t.fare}</span><b>₹{fare}</b></div></div>
         <div className="route-list">{routes.map((route, index) => <button key={route.bus} className={`route-card ${selectedBus.bus === route.bus ? "selected" : ""}`} onClick={() => setSelectedBusId(route.bus)}><span className="bus-icon">BUS</span><span className="route-number"><small>{t.route}</small><b>{route.bus}</b><em>{route.tag}</em></span><span className="time"><small>{t.arrives}</small><b>{route.time}</b><em>{route.minutes} min away</em></span><span className={`availability ${index === 1 ? "busy" : ""}`}>● {route.seats}</span><span className="radio">{selectedBus.bus === route.bus ? "●" : "○"}</span></button>)}</div>
-        <div className="flow-action"><div><span>Total for {passengers} passenger{passengers > 1 ? "s" : ""}</span><b>₹{fare}</b></div><button className="primary" onClick={() => setStep("payment")}>{t.continue} <span>→</span></button></div>
+        <div className="flow-action"><div><span>{shaktiVerified ? "Shakti free-travel benefit applied" : `Total for ${passengers} passenger${passengers > 1 ? "s" : ""}`}</span><b>{shaktiVerified ? "FREE" : `₹${fare}`}</b></div><button className="primary" onClick={() => setStep(shaktiVerified ? "ticket" : "payment")}>{shaktiVerified ? "Get free ticket" : t.continue} <span>→</span></button></div>
       </section>}
 
       {step === "payment" && <section className="flow-page payment-page">
@@ -153,12 +169,13 @@ export default function Home() {
 
       {step === "ticket" && <section className="ticket-page">
         <div className="success-badge">✓</div><span className="mini-label">PAYMENT SUCCESSFUL</span><h1>You’re ready to ride!</h1><p>Show this QR code to the conductor when asked.</p>
-        <article className="ticket"><div className="ticket-top"><div><span className="brand-mark small">N</span><b>Namma Ticket</b></div><span className="valid">● VALID</span></div><div className="ticket-route"><div><small>FROM</small><b>{from.split(" (")[0]}</b></div><span>→</span><div><small>TO</small><b>{to}</b></div></div><div className="ticket-details"><div><small>ROUTE</small><b>{selectedBus.bus}</b></div><div><small>PASSENGERS</small><b>{passengers}</b></div><div><small>FARE PAID</small><b>₹{fare}</b></div></div><div className="qr-wrap"><QRCode/><div><small>TICKET ID</small><b>NMT-2507-84K2</b><p>Valid for this journey only</p></div></div><div className="ticket-footer"><span>Purchased at 08:39 AM</span><span>BMTC · Bengaluru</span></div></article>
+        <article className="ticket"><div className="ticket-top"><div><span className="brand-mark small">N</span><b>Namma Ticket</b></div><span className="valid">● VALID</span></div>{shaktiVerified && <div className="shakti-ticket-badge">ಶ Shakti free-travel ticket · Aadhaar ending ••••</div>}<div className="ticket-route"><div><small>FROM</small><b>{from.split(" (")[0]}</b></div><span>→</span><div><small>TO</small><b>{to}</b></div></div><div className="ticket-details"><div><small>ROUTE</small><b>{selectedBus.bus}</b></div><div><small>PASSENGERS</small><b>{passengers}</b></div><div><small>FARE PAID</small><b>{shaktiVerified ? "FREE" : `₹${fare}`}</b></div></div><div className="qr-wrap"><QRCode/><div><small>TICKET ID</small><b>NMT-2507-84K2</b><p>Valid for this journey only</p></div></div><div className="ticket-footer"><span>Purchased at 08:39 AM</span><span>BMTC · Bengaluru</span></div></article>
         <div className="ticket-actions"><button className="secondary" onClick={downloadTicket}>↓ Download ticket</button><button className="primary" onClick={startOver}>Book another ride</button></div><p className="help">Need help? Call BMTC at <b>080-2248 3777</b></p>
       </section>}
 
       <button className="support-fab" onClick={() => setSupportOpen(true)} aria-label={t.support}>?</button>
       <button className="chat-fab" onClick={() => setChatOpen(!chatOpen)} aria-label="Open Namma AI assistant">AI</button>
+      {shaktiOpen && <div className="shakti-modal" role="dialog" aria-modal="true" aria-label="Shakti Aadhaar verification" onClick={() => setShaktiOpen(false)}><div onClick={event => event.stopPropagation()}><button className="modal-close" onClick={() => setShaktiOpen(false)} aria-label="Close verification">×</button>{shaktiVerified ? <div className="verification-success"><span>✓</span><h2>Eligibility verified</h2><p>Free-travel fares will be applied automatically to eligible BMTC ordinary bus journeys in this prototype.</p><button className="primary" onClick={() => setShaktiOpen(false)}>Continue booking</button><button className="remove-verification" onClick={() => { setShaktiVerified(false); setAadhaarConsent(false); setShaktiOpen(false); }}>Remove verification</button></div> : <><span className="mini-label">SHAKTI FREE TRAVEL</span><h2>Verify your eligibility</h2><p className="privacy-note">Your Aadhaar number is used only for this demonstration and is never saved or sent anywhere.</p><label className="aadhaar-field"><span>AADHAAR NUMBER</span><input value={aadhaar} onChange={event => setAadhaar(event.target.value.replace(/\D/g, "").slice(0,12))} inputMode="numeric" autoComplete="off" placeholder="0000 0000 0000"/><small>{aadhaar.length}/12 digits</small></label><label className="consent"><input type="checkbox" checked={aadhaarConsent} onChange={event => setAadhaarConsent(event.target.checked)}/><span>I confirm that I am an eligible woman passenger and consent to identity verification for the Shakti travel benefit.</span></label>{verificationError && <p className="verification-error">{verificationError}</p>}<button className="primary full" onClick={verifyShaktiEligibility}>Verify securely →</button><div className="data-safety">⌾ No Aadhaar data is stored · Authorized verification required for production</div></>}</div></div>}
       {chatOpen && <aside className="chatbot" aria-label="Namma AI assistant"><div className="chat-head"><span className="bot-avatar">N</span><div><b>Namma AI</b><small>Passenger assistant · Online</small></div><button onClick={() => setChatOpen(false)} aria-label="Close Namma AI">×</button></div><div className="chat-body"><div className="bot-message">{chatAnswer}</div><p>POPULAR QUESTIONS</p><div className="question-chips">{["How do I book a ticket?","Can I book after boarding?","Where is my QR ticket?","How do refunds work?","My payment failed"].map(question => <button key={question} onClick={() => askBot(question)}>{question}<span>→</span></button>)}</div></div><div className="chat-foot"><span>AI answers general questions. For account help, use Support.</span></div></aside>}
       {supportOpen && <div className="support-modal" role="dialog" aria-modal="true" aria-label={t.support} onClick={() => setSupportOpen(false)}><div onClick={event => event.stopPropagation()}><button className="modal-close" onClick={() => setSupportOpen(false)} aria-label="Close support">×</button><span className="mini-label">NAMMA SUPPORT</span><h2>{t.helpTitle}</h2><p>{t.helpText}</p><div className="modal-actions"><a href="tel:08022483777"><i>☎</i><span><b>{t.call}</b><small>6 AM – 11 PM · 080-2248 3777</small></span><em>→</em></a><a href="mailto:support@nammaticket.in"><i>✉</i><span><b>{t.chat}</b><small>support@nammaticket.in</small></span><em>→</em></a><a href="tel:08022952522"><i>ⓘ</i><span><b>BMTC Control Room</b><small>Lost property &amp; emergencies</small></span><em>080-2295 2522</em></a></div><div className="faq-box"><b>{lang === "en" ? "Payment successful, but ticket is missing?" : "ಪಾವತಿಯಾಗಿದೆ, ಆದರೆ ಟಿಕೆಟ್ ಕಾಣುತ್ತಿಲ್ಲವೇ?"}</b><p>{lang === "en" ? "Wait 30 seconds and check recent tickets. If it is still missing, contact us with your payment reference." : "30 ಸೆಕೆಂಡ್ ಕಾಯಿರಿ ಮತ್ತು ಇತ್ತೀಚಿನ ಟಿಕೆಟ್ ಪರಿಶೀಲಿಸಿ. ಇನ್ನೂ ಕಾಣದಿದ್ದರೆ ಪಾವತಿ ಉಲ್ಲೇಖದೊಂದಿಗೆ ನಮ್ಮನ್ನು ಸಂಪರ್ಕಿಸಿ."}</p></div></div></div>}
       <footer><div className="brand"><span className="brand-mark">N</span><span>Namma <b>Ticket</b></span></div><p>{t.made}</p><span>© 2026 Namma Ticket · A BMTC travel experience</span></footer>
