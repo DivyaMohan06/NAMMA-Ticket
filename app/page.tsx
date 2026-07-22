@@ -72,7 +72,7 @@ export default function Home() {
           <span className="brand-mark">N</span>
           <span>Namma <b>Ticket</b></span>
         </button>
-        <div className="nav-links"><a href="#how">{t.how}</a><a href="#support">{t.support}</a><button className="lang" onClick={() => setLang(lang === "en" ? "kn" : "en")} aria-label="Change language"><b>{lang === "en" ? "ಕನ್ನಡ" : "English"}</b> <span>⇄</span></button><button className="profile" aria-label="Profile">ಜ</button></div>
+        <div className="nav-links"><a href="#how">{t.how}</a><button className="nav-support" onClick={() => setSupportOpen(true)}>◌ {t.support}</button><button className="lang" onClick={() => setLang(lang === "en" ? "kn" : "en")} aria-label="Change language"><b>{lang === "en" ? "ಕನ್ನಡ" : "English"}</b> <span>⇄</span></button><button className="profile" aria-label="Profile">ಜ</button></div>
       </nav>
 
       {step === "search" && <>
@@ -106,10 +106,6 @@ export default function Home() {
           <div className="steps"><article><b>01</b><div className="step-icon">⌖</div><h3>Choose your route</h3><p>Pick where you’re boarding and where you’re headed.</p></article><article><b>02</b><div className="step-icon">₹</div><h3>Pay your way</h3><p>Use any UPI app or card. It’s fast and secure.</p></article><article><b>03</b><div className="step-icon">▦</div><h3>Show &amp; ride</h3><p>Show your QR ticket when the conductor asks. Done.</p></article></div>
         </section>
 
-        <section className="support-section" id="support">
-          <div className="support-copy"><span className="mini-label">NAMMA SUPPORT</span><h2>{t.helpTitle}</h2><p>{t.helpText}</p><div className="control-room">ⓘ BMTC Control Room<br/><b>080-2295 2522</b></div></div>
-          <div className="support-cards"><a href="tel:08022483777"><i>☎</i><span><b>{t.call}</b><small>6 AM – 11 PM · 080-2248 3777</small></span><em>→</em></a><button onClick={() => setSupportOpen(true)}><i>◌</i><span><b>{t.chat}</b><small>Average reply in under 2 minutes</small></span><em>→</em></button><button onClick={() => setSupportOpen(true)}><i>?</i><span><b>{t.answers}</b><small>Tickets, refunds and QR help</small></span><em>→</em></button></div>
-        </section>
       </>}
 
       {step === "routes" && <section className="flow-page">
@@ -131,7 +127,7 @@ export default function Home() {
       </section>}
 
       <button className="support-fab" onClick={() => setSupportOpen(true)} aria-label={t.support}>?</button>
-      {supportOpen && <div className="support-modal" role="dialog" aria-modal="true"><div><button className="modal-close" onClick={() => setSupportOpen(false)}>×</button><span className="mini-label">NAMMA SUPPORT</span><h2>{t.helpTitle}</h2><p>{t.helpText}</p><a href="tel:08022483777">☎ {t.call}: <b>080-2248 3777</b></a><a href="mailto:support@nammaticket.in">✉ support@nammaticket.in</a><div className="faq-box"><b>{lang === "en" ? "Payment successful, but ticket is missing?" : "ಪಾವತಿಯಾಗಿದೆ, ಆದರೆ ಟಿಕೆಟ್ ಕಾಣುತ್ತಿಲ್ಲವೇ?"}</b><p>{lang === "en" ? "Wait 30 seconds and check recent tickets. If it is still missing, contact us with your payment reference." : "30 ಸೆಕೆಂಡ್ ಕಾಯಿರಿ ಮತ್ತು ಇತ್ತೀಚಿನ ಟಿಕೆಟ್ ಪರಿಶೀಲಿಸಿ. ಇನ್ನೂ ಕಾಣದಿದ್ದರೆ ಪಾವತಿ ಉಲ್ಲೇಖದೊಂದಿಗೆ ನಮ್ಮನ್ನು ಸಂಪರ್ಕಿಸಿ."}</p></div></div></div>}
+      {supportOpen && <div className="support-modal" role="dialog" aria-modal="true" aria-label={t.support} onClick={() => setSupportOpen(false)}><div onClick={event => event.stopPropagation()}><button className="modal-close" onClick={() => setSupportOpen(false)} aria-label="Close support">×</button><span className="mini-label">NAMMA SUPPORT</span><h2>{t.helpTitle}</h2><p>{t.helpText}</p><div className="modal-actions"><a href="tel:08022483777"><i>☎</i><span><b>{t.call}</b><small>6 AM – 11 PM · 080-2248 3777</small></span><em>→</em></a><a href="mailto:support@nammaticket.in"><i>✉</i><span><b>{t.chat}</b><small>support@nammaticket.in</small></span><em>→</em></a><a href="tel:08022952522"><i>ⓘ</i><span><b>BMTC Control Room</b><small>Lost property &amp; emergencies</small></span><em>080-2295 2522</em></a></div><div className="faq-box"><b>{lang === "en" ? "Payment successful, but ticket is missing?" : "ಪಾವತಿಯಾಗಿದೆ, ಆದರೆ ಟಿಕೆಟ್ ಕಾಣುತ್ತಿಲ್ಲವೇ?"}</b><p>{lang === "en" ? "Wait 30 seconds and check recent tickets. If it is still missing, contact us with your payment reference." : "30 ಸೆಕೆಂಡ್ ಕಾಯಿರಿ ಮತ್ತು ಇತ್ತೀಚಿನ ಟಿಕೆಟ್ ಪರಿಶೀಲಿಸಿ. ಇನ್ನೂ ಕಾಣದಿದ್ದರೆ ಪಾವತಿ ಉಲ್ಲೇಖದೊಂದಿಗೆ ನಮ್ಮನ್ನು ಸಂಪರ್ಕಿಸಿ."}</p></div></div></div>}
       <footer><div className="brand"><span className="brand-mark">N</span><span>Namma <b>Ticket</b></span></div><p>{t.made}</p><span>© 2026 Namma Ticket · A BMTC travel experience</span></footer>
     </main>
   );
