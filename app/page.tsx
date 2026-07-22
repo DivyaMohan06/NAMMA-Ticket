@@ -47,6 +47,10 @@ export default function Home() {
   const [to, setTo] = useState("Koramangala Water Tank");
   const [passengers, setPassengers] = useState(1);
   const [supportOpen, setSupportOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [journeyTab, setJourneyTab] = useState<"active" | "past" | "refunds">("active");
+  const [refundRequested, setRefundRequested] = useState(false);
+  const [chatAnswer, setChatAnswer] = useState("Hi! I’m Namma AI. Choose a question below and I’ll help you right away.");
   const [step, setStep] = useState<"search" | "routes" | "payment" | "ticket">("search");
   const routes = useMemo(() => (routeFamilies[to] || routeFamilies[stops[4]]).map((bus, index) => ({ bus, time: `08:${String(42 + index * 8).padStart(2,"0")}`, minutes: 3 + index * 8, seats: index === 1 ? (lang === "en" ? "Standing likely" : "ನಿಲ್ಲಬೇಕಾಗಬಹುದು") : (lang === "en" ? "Seats available" : "ಆಸನಗಳು ಲಭ್ಯ"), tag: bus.startsWith("KIA") || bus.startsWith("V-") ? "Vayu Vajra" : "Ordinary" })), [to, lang]);
   const [selectedBusId, setSelectedBusId] = useState("");
@@ -63,6 +67,24 @@ export default function Home() {
   function startOver() {
     setStep("search");
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function downloadTicket() {
+    const ticketHtml = `<!doctype html><html><head><meta charset="utf-8"><title>Namma Ticket NMT-2507-84K2</title><style>body{font-family:Arial,sans-serif;background:#f4f1e9;padding:40px;color:#102b28}.ticket{max-width:520px;margin:auto;background:white;border-radius:18px;overflow:hidden;box-shadow:0 15px 45px #0002}.head,.foot{padding:20px 28px;background:#0d765f;color:white}.route{display:flex;justify-content:space-between;padding:32px 28px;background:#f5f1e8}.details{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;padding:28px}.details small,.route small{display:block;color:#71807c;font-weight:bold;margin-bottom:8px}.id{padding:28px;border-top:1px dashed #ccd5d1}.foot{background:#102b28;font-size:12px}@media print{body{background:white}.ticket{box-shadow:none}}</style></head><body><div class="ticket"><div class="head"><b>Namma Ticket</b> &nbsp; • VALID</div><div class="route"><div><small>FROM</small><b>${from}</b></div><div>→</div><div><small>TO</small><b>${to}</b></div></div><div class="details"><div><small>ROUTE</small><b>${selectedBus.bus}</b></div><div><small>PASSENGERS</small><b>${passengers}</b></div><div><small>FARE PAID</small><b>₹${fare}</b></div></div><div class="id"><small>TICKET ID</small><h2>NMT-2507-84K2</h2><p>Valid for this journey only. Show this ticket to the conductor.</p></div><div class="foot">BMTC · Bengaluru</div></div></body></html>`;
+    const url = URL.createObjectURL(new Blob([ticketHtml], { type: "text/html" }));
+    const anchor = document.createElement("a"); anchor.href = url; anchor.download = "Namma-Ticket-NMT-2507-84K2.html"; anchor.style.display = "none"; document.body.appendChild(anchor); anchor.click(); anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function askBot(question: string) {
+    const answers: Record<string, string> = {
+      "How do I book a ticket?": "Choose your boarding and destination stops, select a bus, pay securely, and show the generated QR ticket to the conductor.",
+      "Can I book after boarding?": "Yes. You can purchase a ticket after boarding, but please complete payment before the conductor checks your ticket.",
+      "Where is my QR ticket?": "After a successful payment, your QR ticket appears immediately. You can also find it under My journeys → Active ticket.",
+      "How do refunds work?": "Open My journeys → Refunds and choose Request refund for an eligible booking. Refunds normally return to the original payment method in 3–5 working days.",
+      "My payment failed": "Check whether money was debited. If yes, wait 30 seconds and check Active tickets. Otherwise retry payment or contact Namma Support."
+    };
+    setChatAnswer(answers[question] || "Please contact Namma Support at 080-2248 3777 for more help.");
   }
 
   return (
@@ -106,6 +128,15 @@ export default function Home() {
           <div className="steps"><article><b>01</b><div className="step-icon">⌖</div><h3>Choose your route</h3><p>Pick where you’re boarding and where you’re headed.</p></article><article><b>02</b><div className="step-icon">₹</div><h3>Pay your way</h3><p>Use any UPI app or card. It’s fast and secure.</p></article><article><b>03</b><div className="step-icon">▦</div><h3>Show &amp; ride</h3><p>Show your QR ticket when the conductor asks. Done.</p></article></div>
         </section>
 
+        <section className="journeys" id="journeys">
+          <div className="journeys-head"><div><span className="mini-label">MY JOURNEYS</span><h2>Your tickets, all in one place.</h2><p>View active rides, past bookings, and refund updates.</p></div><div className="journey-tabs" role="tablist"><button className={journeyTab === "active" ? "active" : ""} onClick={() => setJourneyTab("active")}>Active tickets <b>1</b></button><button className={journeyTab === "past" ? "active" : ""} onClick={() => setJourneyTab("past")}>Past bookings</button><button className={journeyTab === "refunds" ? "active" : ""} onClick={() => setJourneyTab("refunds")}>Refunds</button></div></div>
+          <div className="journey-panel">
+            {journeyTab === "active" && <article className="journey-row"><span className="journey-status live">● ACTIVE</span><div><small>TODAY · 08:42 AM</small><h3>Majestic <em>→</em> Koramangala</h3><p>Route 171 · 1 passenger</p></div><div className="journey-fare"><small>FARE PAID</small><b>₹34</b></div><button onClick={() => { setFrom(stops[0]); setTo(stops[4]); setSelectedBusId("171"); setStep("ticket"); window.scrollTo({top:0,behavior:"smooth"}); }}>View QR ticket →</button></article>}
+            {journeyTab === "past" && <><article className="journey-row muted"><span className="journey-status">COMPLETED</span><div><small>18 JUL · 06:15 PM</small><h3>Indiranagar <em>→</em> Whitefield</h3><p>Route 335-E · 1 passenger</p></div><div className="journey-fare"><small>FARE PAID</small><b>₹30</b></div><button onClick={() => setJourneyTab("refunds")}>Get help →</button></article><article className="journey-row muted"><span className="journey-status">COMPLETED</span><div><small>12 JUL · 09:05 AM</small><h3>Banashankari <em>→</em> K.R. Market</h3><p>Route 210-P · 2 passengers</p></div><div className="journey-fare"><small>FARE PAID</small><b>₹52</b></div><button onClick={() => setJourneyTab("refunds")}>Get help →</button></article></>}
+            {journeyTab === "refunds" && <article className="refund-card"><div className="refund-icon">↺</div><div><h3>{refundRequested ? "Refund request received" : "Need to cancel an eligible booking?"}</h3><p>{refundRequested ? "Your request RF-20481 is being reviewed. The amount will return to your original payment method in 3–5 working days." : "Select an eligible recent booking to request a refund. Completed journeys are reviewed before approval."}</p></div><button className="secondary" disabled={refundRequested} onClick={() => setRefundRequested(true)}>{refundRequested ? "Request submitted ✓" : "Request refund"}</button></article>}
+          </div>
+        </section>
+
       </>}
 
       {step === "routes" && <section className="flow-page">
@@ -123,10 +154,12 @@ export default function Home() {
       {step === "ticket" && <section className="ticket-page">
         <div className="success-badge">✓</div><span className="mini-label">PAYMENT SUCCESSFUL</span><h1>You’re ready to ride!</h1><p>Show this QR code to the conductor when asked.</p>
         <article className="ticket"><div className="ticket-top"><div><span className="brand-mark small">N</span><b>Namma Ticket</b></div><span className="valid">● VALID</span></div><div className="ticket-route"><div><small>FROM</small><b>{from.split(" (")[0]}</b></div><span>→</span><div><small>TO</small><b>{to}</b></div></div><div className="ticket-details"><div><small>ROUTE</small><b>{selectedBus.bus}</b></div><div><small>PASSENGERS</small><b>{passengers}</b></div><div><small>FARE PAID</small><b>₹{fare}</b></div></div><div className="qr-wrap"><QRCode/><div><small>TICKET ID</small><b>NMT-2507-84K2</b><p>Valid for this journey only</p></div></div><div className="ticket-footer"><span>Purchased at 08:39 AM</span><span>BMTC · Bengaluru</span></div></article>
-        <div className="ticket-actions"><button className="secondary">↓ Download ticket</button><button className="primary" onClick={startOver}>Book another ride</button></div><p className="help">Need help? Call BMTC at <b>080-2248 3777</b></p>
+        <div className="ticket-actions"><button className="secondary" onClick={downloadTicket}>↓ Download ticket</button><button className="primary" onClick={startOver}>Book another ride</button></div><p className="help">Need help? Call BMTC at <b>080-2248 3777</b></p>
       </section>}
 
       <button className="support-fab" onClick={() => setSupportOpen(true)} aria-label={t.support}>?</button>
+      <button className="chat-fab" onClick={() => setChatOpen(!chatOpen)} aria-label="Open Namma AI assistant">AI</button>
+      {chatOpen && <aside className="chatbot" aria-label="Namma AI assistant"><div className="chat-head"><span className="bot-avatar">N</span><div><b>Namma AI</b><small>Passenger assistant · Online</small></div><button onClick={() => setChatOpen(false)} aria-label="Close Namma AI">×</button></div><div className="chat-body"><div className="bot-message">{chatAnswer}</div><p>POPULAR QUESTIONS</p><div className="question-chips">{["How do I book a ticket?","Can I book after boarding?","Where is my QR ticket?","How do refunds work?","My payment failed"].map(question => <button key={question} onClick={() => askBot(question)}>{question}<span>→</span></button>)}</div></div><div className="chat-foot"><span>AI answers general questions. For account help, use Support.</span></div></aside>}
       {supportOpen && <div className="support-modal" role="dialog" aria-modal="true" aria-label={t.support} onClick={() => setSupportOpen(false)}><div onClick={event => event.stopPropagation()}><button className="modal-close" onClick={() => setSupportOpen(false)} aria-label="Close support">×</button><span className="mini-label">NAMMA SUPPORT</span><h2>{t.helpTitle}</h2><p>{t.helpText}</p><div className="modal-actions"><a href="tel:08022483777"><i>☎</i><span><b>{t.call}</b><small>6 AM – 11 PM · 080-2248 3777</small></span><em>→</em></a><a href="mailto:support@nammaticket.in"><i>✉</i><span><b>{t.chat}</b><small>support@nammaticket.in</small></span><em>→</em></a><a href="tel:08022952522"><i>ⓘ</i><span><b>BMTC Control Room</b><small>Lost property &amp; emergencies</small></span><em>080-2295 2522</em></a></div><div className="faq-box"><b>{lang === "en" ? "Payment successful, but ticket is missing?" : "ಪಾವತಿಯಾಗಿದೆ, ಆದರೆ ಟಿಕೆಟ್ ಕಾಣುತ್ತಿಲ್ಲವೇ?"}</b><p>{lang === "en" ? "Wait 30 seconds and check recent tickets. If it is still missing, contact us with your payment reference." : "30 ಸೆಕೆಂಡ್ ಕಾಯಿರಿ ಮತ್ತು ಇತ್ತೀಚಿನ ಟಿಕೆಟ್ ಪರಿಶೀಲಿಸಿ. ಇನ್ನೂ ಕಾಣದಿದ್ದರೆ ಪಾವತಿ ಉಲ್ಲೇಖದೊಂದಿಗೆ ನಮ್ಮನ್ನು ಸಂಪರ್ಕಿಸಿ."}</p></div></div></div>}
       <footer><div className="brand"><span className="brand-mark">N</span><span>Namma <b>Ticket</b></span></div><p>{t.made}</p><span>© 2026 Namma Ticket · A BMTC travel experience</span></footer>
     </main>
