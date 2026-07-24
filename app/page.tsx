@@ -66,12 +66,13 @@ export default function Home() {
   const [shaktiVerified, setShaktiVerified] = useState(false);
   const [shaktiCategory, setShaktiCategory] = useState<"" | "eligibleWoman" | "notEligible">("");
   const [verificationError, setVerificationError] = useState("");
-  const [loyaltyPoints, setLoyaltyPoints] = useState(240);
+  const [loyaltyPoints, setLoyaltyPoints] = useState(0);
   const [redeemPoints, setRedeemPoints] = useState(false);
   const [selectedPass, setSelectedPass] = useState<{name:string; price:number; validity:string; details:string} | null>(null);
   const [passPurchased, setPassPurchased] = useState(false);
   const [journeyTab, setJourneyTab] = useState<"active" | "past" | "refunds">("active");
   const [refundRequested, setRefundRequested] = useState(false);
+  const [hasBookedTicket, setHasBookedTicket] = useState(false);
   const [chatAnswer, setChatAnswer] = useState("Hi! I’m Namma AI. Choose a question below and I’ll help you right away.");
   const [step, setStep] = useState<"search" | "routes" | "payment" | "ticket">("search");
   const routes = useMemo(() => (routeFamilies[to] || routeFamilies[stops[4]]).map((bus, index) => ({ bus, time: `08:${String(42 + index * 8).padStart(2,"0")}`, minutes: 3 + index * 8, seats: index === 1 ? (lang === "en" ? "Standing likely" : "ನಿಲ್ಲಬೇಕಾಗಬಹುದು") : (lang === "en" ? "Seats available" : "ಆಸನಗಳು ಲಭ್ಯ"), tag: bus.startsWith("KIA") || bus.startsWith("V-") ? "Vayu Vajra" : "Ordinary" })), [to, lang]);
@@ -119,20 +120,56 @@ export default function Home() {
     setVerificationError(""); setShaktiVerified(true); setAadhaar("");
   }
 
+  function resetCustomerAccount() {
+    setFrom(stops[0]);
+    setTo(stops[4]);
+    setPassengers(1);
+    setSelectedBusId("");
+    setStep("search");
+    setLoyaltyPoints(0);
+    setRedeemPoints(false);
+    setShaktiVerified(false);
+    setShaktiCategory("");
+    setAadhaar("");
+    setAadhaarConsent(false);
+    setVerificationError("");
+    setSelectedPass(null);
+    setPassPurchased(false);
+    setJourneyTab("active");
+    setRefundRequested(false);
+    setHasBookedTicket(false);
+    setSupportOpen(false);
+    setChatOpen(false);
+  }
+
   function continueLogin() {
     if (loginStep === "phone") { if (phone.length !== 10) { setLoginError("Enter a valid 10-digit mobile number."); return; } setLoginError(""); setLoginStep("otp"); return; }
     if (otp !== "1234") { setLoginError("For this prototype, enter demo OTP 1234."); return; }
-    setLoginError(""); setLoggedIn(true);
+    resetCustomerAccount();
+    setLoginError("");
+    setShowWelcome(true);
+    setLoggedIn(true);
   }
 
   function completeTicketPurchase() {
     setLoyaltyPoints(points => points - pointsToUse + Math.floor(fare / 10));
+    setHasBookedTicket(true);
     setStep("ticket");
   }
 
-  if (showWelcome) return <main className="welcome-page"><div className="welcome-orbit one"/><div className="welcome-orbit two"/><nav className="welcome-nav"><div className="brand"><span className="brand-mark">N</span><span>Namma <b>Ticket</b></span></div><span>BMTC · Bengaluru</span></nav><section className="welcome-content"><div className="welcome-badge">● NAMMA BENGALURU, NAMMA BUS</div><h1>Welcome aboard.<br/><em>Your city is one tap away.</em></h1><p>Book BMTC tickets before or after boarding, travel free when eligible under Shakti, and keep every journey in one simple place.</p><button className="welcome-cta" onClick={() => setShowWelcome(false)}>Start booking <span>→</span></button><div className="welcome-features"><span>✓ Instant QR tickets</span><span>✓ Shakti eligibility</span><span>✓ Kannada &amp; English</span></div></section><div className="welcome-ticket"><div><span className="brand-mark small">N</span><b>Namma Ticket</b><em>● READY</em></div><p>MAJESTIC <span>→</span> KORAMANGALA</p><small>Fast. Simple. Made for Bengaluru.</small></div><footer className="welcome-footer">Safe journeys start here · Namma Ticket</footer></main>;
+  function signOut() {
+    resetCustomerAccount();
+    setLoggedIn(false);
+    setPhone("");
+    setOtp("");
+    setLoginStep("phone");
+    setLoginError("");
+    setShowWelcome(true);
+  }
 
-  if (!loggedIn) return <main className="login-page"><section className="login-brand"><div className="brand"><span className="brand-mark">N</span><span>Namma <b>Ticket</b></span></div><div><span className="mini-label">WELCOME BACK</span><h1>Sign in and keep<br/><em>Bengaluru moving.</em></h1><p>Access your tickets, passes, Shakti eligibility, refunds, and Namma Rewards from any device.</p></div><div className="login-benefits"><span>✓ Secure OTP access</span><span>✓ Tickets synced to your number</span><span>✓ Earn rewards every ride</span></div></section><section className="login-card"><button className="login-back" onClick={() => setShowWelcome(true)}>← Back</button><div className="login-icon">ಜ</div><span className="mini-label">{loginStep === "phone" ? "SIGN IN OR CREATE ACCOUNT" : "VERIFY YOUR NUMBER"}</span><h2>{loginStep === "phone" ? "Your journeys await." : "Enter the 4-digit OTP."}</h2><p>{loginStep === "phone" ? "Use your mobile number to continue securely." : `A demo OTP was sent to +91 ${phone}.`}</p>{loginStep === "phone" ? <label className="login-field"><span>MOBILE NUMBER</span><div><b>+91</b><input value={phone} onChange={event => setPhone(event.target.value.replace(/\D/g, "").slice(0,10))} inputMode="tel" placeholder="98765 43210" autoFocus/></div></label> : <label className="login-field"><span>ONE-TIME PASSWORD</span><input className="otp-input" value={otp} onChange={event => setOtp(event.target.value.replace(/\D/g, "").slice(0,4))} inputMode="numeric" placeholder="• • • •" autoFocus/><small>Demo OTP: 1234</small></label>}{loginError && <p className="login-error">{loginError}</p>}<button className="primary full" onClick={continueLogin}>{loginStep === "phone" ? "Send OTP →" : "Verify & continue →"}</button>{loginStep === "otp" && <button className="change-number" onClick={() => { setLoginStep("phone"); setOtp(""); setLoginError(""); }}>Change mobile number</button>}<small className="login-terms">Prototype login only. No mobile number or OTP is transmitted or stored.</small></section></main>;
+  if (!loggedIn) return <main className="login-page"><section className="login-brand"><div className="brand"><span className="brand-mark">N</span><span>Namma <b>Ticket</b></span></div><div><span className="mini-label">WELCOME</span><h1>Sign in and keep<br/><em>Bengaluru moving.</em></h1><p>Every login starts a fresh passenger account for tickets, passes, Shakti eligibility, refunds, and Namma Rewards.</p></div><div className="login-benefits"><span>✓ Secure OTP access</span><span>✓ Fresh private session</span><span>✓ Earn rewards every ride</span></div></section><section className="login-card"><div className="login-icon">ಜ</div><span className="mini-label">{loginStep === "phone" ? "SIGN IN OR CREATE ACCOUNT" : "VERIFY YOUR NUMBER"}</span><h2>{loginStep === "phone" ? "Your journeys await." : "Enter the 4-digit OTP."}</h2><p>{loginStep === "phone" ? "Use your mobile number to begin a new passenger session." : `A demo OTP was sent to +91 ${phone}.`}</p>{loginStep === "phone" ? <label className="login-field"><span>MOBILE NUMBER</span><div><b>+91</b><input value={phone} onChange={event => setPhone(event.target.value.replace(/\D/g, "").slice(0,10))} inputMode="tel" placeholder="98765 43210" autoFocus/></div></label> : <label className="login-field"><span>ONE-TIME PASSWORD</span><input className="otp-input" value={otp} onChange={event => setOtp(event.target.value.replace(/\D/g, "").slice(0,4))} inputMode="numeric" placeholder="• • • •" autoFocus/><small>Demo OTP: 1234</small></label>}{loginError && <p className="login-error">{loginError}</p>}<button className="primary full" onClick={continueLogin}>{loginStep === "phone" ? "Send OTP →" : "Verify & continue →"}</button>{loginStep === "otp" && <button className="change-number" onClick={() => { setLoginStep("phone"); setOtp(""); setLoginError(""); }}>Change mobile number</button>}<small className="login-terms">Prototype login only. No mobile number or OTP is transmitted or stored.</small></section></main>;
+
+  if (showWelcome) return <main className="welcome-page"><div className="welcome-orbit one"/><div className="welcome-orbit two"/><nav className="welcome-nav"><div className="brand"><span className="brand-mark">N</span><span>Namma <b>Ticket</b></span></div><span>BMTC · Bengaluru</span></nav><section className="welcome-content"><div className="welcome-badge">● NAMMA BENGALURU, NAMMA BUS</div><h1>Welcome aboard.<br/><em>Your city is one tap away.</em></h1><p>Your fresh passenger account is ready. Book BMTC tickets before or after boarding and keep this journey in one simple place.</p><button className="welcome-cta" onClick={() => setShowWelcome(false)}>Start booking <span>→</span></button><div className="welcome-features"><span>✓ Instant QR tickets</span><span>✓ Shakti eligibility</span><span>✓ Kannada &amp; English</span></div></section><div className="welcome-ticket"><div><span className="brand-mark small">N</span><b>Namma Ticket</b><em>● READY</em></div><p>MAJESTIC <span>→</span> KORAMANGALA</p><small>Fast. Simple. Made for Bengaluru.</small></div><footer className="welcome-footer">Safe journeys start here · Namma Ticket</footer></main>;
 
   return (
     <main>
@@ -141,7 +178,7 @@ export default function Home() {
           <span className="brand-mark">N</span>
           <span>Namma <b>Ticket</b></span>
         </button>
-        <div className="nav-links"><a href="#how">{t.how}</a><button className="nav-support" onClick={() => setSupportOpen(true)}>◌ {t.support}</button><button className="lang" onClick={() => setLang(lang === "en" ? "kn" : "en")} aria-label="Change language"><b>{lang === "en" ? "ಕನ್ನಡ" : "English"}</b> <span>⇄</span></button><button className="profile" aria-label="Profile">ಜ</button></div>
+        <div className="nav-links"><a href="#how">{t.how}</a><button className="nav-support" onClick={() => setSupportOpen(true)}>◌ {t.support}</button><button className="lang" onClick={() => setLang(lang === "en" ? "kn" : "en")} aria-label="Change language"><b>{lang === "en" ? "ಕನ್ನಡ" : "English"}</b> <span>⇄</span></button><button className="profile" onClick={signOut} aria-label="Sign out and start a fresh customer login" title="Sign out">↪</button></div>
       </nav>
 
       {step === "search" && <>
@@ -185,10 +222,10 @@ export default function Home() {
         </section>
 
         <section className="journeys" id="journeys">
-          <div className="journeys-head"><div><span className="mini-label">MY JOURNEYS</span><h2>Your tickets, all in one place.</h2><p>View active rides, past bookings, and refund updates.</p></div><div className="journey-tabs" role="tablist"><button className={journeyTab === "active" ? "active" : ""} onClick={() => setJourneyTab("active")}>Active tickets <b>1</b></button><button className={journeyTab === "past" ? "active" : ""} onClick={() => setJourneyTab("past")}>Past bookings</button><button className={journeyTab === "refunds" ? "active" : ""} onClick={() => setJourneyTab("refunds")}>Refunds</button></div></div>
+          <div className="journeys-head"><div><span className="mini-label">MY JOURNEYS</span><h2>Your tickets, all in one place.</h2><p>View active rides, past bookings, and refund updates.</p></div><div className="journey-tabs" role="tablist"><button className={journeyTab === "active" ? "active" : ""} onClick={() => setJourneyTab("active")}>Active tickets <b>{hasBookedTicket ? 1 : 0}</b></button><button className={journeyTab === "past" ? "active" : ""} onClick={() => setJourneyTab("past")}>Past bookings</button><button className={journeyTab === "refunds" ? "active" : ""} onClick={() => setJourneyTab("refunds")}>Refunds</button></div></div>
           <div className="journey-panel">
-            {journeyTab === "active" && <article className="journey-row"><span className="journey-status live">● ACTIVE</span><div><small>TODAY · 08:42 AM</small><h3>Majestic <em>→</em> Koramangala</h3><p>Route 171 · 1 passenger</p></div><div className="journey-fare"><small>FARE PAID</small><b>₹34</b></div><button onClick={() => { setFrom(stops[0]); setTo(stops[4]); setSelectedBusId("171"); setStep("ticket"); window.scrollTo({top:0,behavior:"smooth"}); }}>View QR ticket →</button></article>}
-            {journeyTab === "past" && <><article className="journey-row muted"><span className="journey-status">COMPLETED</span><div><small>18 JUL · 06:15 PM</small><h3>Indiranagar <em>→</em> Whitefield</h3><p>Route 335-E · 1 passenger</p></div><div className="journey-fare"><small>FARE PAID</small><b>₹30</b></div><button onClick={() => setJourneyTab("refunds")}>Get help →</button></article><article className="journey-row muted"><span className="journey-status">COMPLETED</span><div><small>12 JUL · 09:05 AM</small><h3>Banashankari <em>→</em> K.R. Market</h3><p>Route 210-P · 2 passengers</p></div><div className="journey-fare"><small>FARE PAID</small><b>₹52</b></div><button onClick={() => setJourneyTab("refunds")}>Get help →</button></article></>}
+            {journeyTab === "active" && (hasBookedTicket ? <article className="journey-row"><span className="journey-status live">● ACTIVE</span><div><small>JUST BOOKED</small><h3>{from.split(" (")[0]} <em>→</em> {to}</h3><p>Route {selectedBus.bus} · {passengers} passenger{passengers > 1 ? "s" : ""}</p></div><div className="journey-fare"><small>FARE PAID</small><b>{shaktiVerified ? "FREE" : `₹${fare}`}</b></div><button onClick={() => { setStep("ticket"); window.scrollTo({top:0,behavior:"smooth"}); }}>View QR ticket →</button></article> : <div className="journey-empty"><b>No active tickets yet</b><p>Your first QR ticket will appear here after you book a ride.</p></div>)}
+            {journeyTab === "past" && <div className="journey-empty"><b>No past bookings</b><p>This is a fresh customer account. Completed journeys will appear here.</p></div>}
             {journeyTab === "refunds" && <article className="refund-card"><div className="refund-icon">↺</div><div><h3>{refundRequested ? "Refund request received" : "Need to cancel an eligible booking?"}</h3><p>{refundRequested ? "Your request RF-20481 is being reviewed. The amount will return to your original payment method in 3–5 working days." : "Select an eligible recent booking to request a refund. Completed journeys are reviewed before approval."}</p></div><button className="secondary" disabled={refundRequested} onClick={() => setRefundRequested(true)}>{refundRequested ? "Request submitted ✓" : "Request refund"}</button></article>}
           </div>
         </section>
@@ -199,7 +236,7 @@ export default function Home() {
         <button className="back" onClick={() => setStep("search")}>← {t.change}</button>
         <div className="flow-title"><div><span className="mini-label">YOUR ROUTE</span><h1>{t.choose}</h1><p>{stopName(from)} <b>→</b> {stopName(to)}</p></div><div className="fare-pill"><span>{t.fare}</span><b>₹{fare}</b></div></div>
         <div className="route-list">{routes.map((route, index) => <button key={route.bus} className={`route-card ${selectedBus.bus === route.bus ? "selected" : ""}`} onClick={() => setSelectedBusId(route.bus)}><span className="bus-icon">BUS</span><span className="route-number"><small>{t.route}</small><b>{route.bus}</b><em>{route.tag}</em></span><span className="time"><small>{t.arrives}</small><b>{route.time}</b><em>{route.minutes} min away</em></span><span className={`availability ${index === 1 ? "busy" : ""}`}>● {route.seats}</span><span className="radio">{selectedBus.bus === route.bus ? "●" : "○"}</span></button>)}</div>
-        <div className="flow-action"><div><span>{shaktiVerified ? "Shakti free-travel benefit applied" : `Total for ${passengers} passenger${passengers > 1 ? "s" : ""}`}</span><b>{shaktiVerified ? "FREE" : `₹${fare}`}</b></div><button className="primary" onClick={() => setStep(shaktiVerified ? "ticket" : "payment")}>{shaktiVerified ? "Get free ticket" : t.continue} <span>→</span></button></div>
+        <div className="flow-action"><div><span>{shaktiVerified ? "Shakti free-travel benefit applied" : `Total for ${passengers} passenger${passengers > 1 ? "s" : ""}`}</span><b>{shaktiVerified ? "FREE" : `₹${fare}`}</b></div><button className="primary" onClick={() => { if (shaktiVerified) setHasBookedTicket(true); setStep(shaktiVerified ? "ticket" : "payment"); }}>{shaktiVerified ? "Get free ticket" : t.continue} <span>→</span></button></div>
       </section>}
 
       {step === "payment" && <section className="flow-page payment-page">
