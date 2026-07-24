@@ -68,7 +68,7 @@ export default function Home() {
   const [verificationError, setVerificationError] = useState("");
   const [loyaltyPoints, setLoyaltyPoints] = useState(240);
   const [redeemPoints, setRedeemPoints] = useState(false);
-  const [selectedPass, setSelectedPass] = useState<{name:string; price:number; validity:string} | null>(null);
+  const [selectedPass, setSelectedPass] = useState<{name:string; price:number; validity:string; details:string} | null>(null);
   const [passPurchased, setPassPurchased] = useState(false);
   const [journeyTab, setJourneyTab] = useState<"active" | "past" | "refunds">("active");
   const [refundRequested, setRefundRequested] = useState(false);
