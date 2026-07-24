@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import QRCodeGenerator from "qrcode";
 
 const stops = [
   "Majestic (Kempegowda Bus Station)",
@@ -49,6 +50,12 @@ function QRCode() {
 export default function Home() {
   const [showWelcome, setShowWelcome] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
+  const [customerName, setCustomerName] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [returningCustomer, setReturningCustomer] = useState(false);
+  const [appQr, setAppQr] = useState("");
+  const [linkCopied, setLinkCopied] = useState(false);
   const [loginStep, setLoginStep] = useState<"phone" | "otp">("phone");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
@@ -83,6 +90,33 @@ export default function Home() {
   const pointsToUse = loyaltyDiscount * 10;
   const fare = shaktiVerified ? 0 : regularFare - loyaltyDiscount;
   const stopName = (stop: string) => lang === "kn" ? stopKannada[stop] : stop;
+
+  useEffect(() => {
+    QRCodeGenerator.toDataURL(window.location.origin, {
+      width: 240,
+      margin: 1,
+      color: { dark: "#102b28", light: "#ffffff" },
+    }).then(setAppQr).catch(() => setAppQr(""));
+  }, []);
+
+  useEffect(() => {
+    if (!loggedIn || phone.length !== 10) return;
+    const account = {
+      name: customerName,
+      email: customerEmail,
+      loyaltyPoints,
+      shaktiVerified,
+      shaktiCategory,
+      selectedPass,
+      passPurchased,
+      hasBookedTicket,
+      from,
+      to,
+      passengers,
+      selectedBusId,
+    };
+    window.localStorage.setItem(`namma-ticket-account-${phone}`, JSON.stringify(account));
+  }, [loggedIn, phone, customerName, customerEmail, loyaltyPoints, shaktiVerified, shaktiCategory, selectedPass, passPurchased, hasBookedTicket, from, to, passengers, selectedBusId]);
 
   function swapStops() {
     setFrom(to);
@@ -146,6 +180,31 @@ export default function Home() {
     if (loginStep === "phone") { if (phone.length !== 10) { setLoginError("Enter a valid 10-digit mobile number."); return; } setLoginError(""); setLoginStep("otp"); return; }
     if (otp !== "1234") { setLoginError("For this prototype, enter demo OTP 1234."); return; }
     resetCustomerAccount();
+    const savedAccount = window.localStorage.getItem(`namma-ticket-account-${phone}`);
+    setReturningCustomer(Boolean(savedAccount));
+    if (savedAccount) {
+      try {
+        const account = JSON.parse(savedAccount);
+        setCustomerName(account.name || "");
+        setCustomerEmail(account.email || "");
+        setLoyaltyPoints(Number(account.loyaltyPoints) || 0);
+        setShaktiVerified(Boolean(account.shaktiVerified));
+        setShaktiCategory(account.shaktiCategory || "");
+        setSelectedPass(account.selectedPass || null);
+        setPassPurchased(Boolean(account.passPurchased));
+        setHasBookedTicket(Boolean(account.hasBookedTicket));
+        setFrom(stops.includes(account.from) ? account.from : stops[0]);
+        setTo(stops.includes(account.to) ? account.to : stops[4]);
+        setPassengers(Math.min(6, Math.max(1, Number(account.passengers) || 1)));
+        setSelectedBusId(account.selectedBusId || "");
+      } catch {
+        window.localStorage.removeItem(`namma-ticket-account-${phone}`);
+        setReturningCustomer(false);
+      }
+    } else {
+      setCustomerName("");
+      setCustomerEmail("");
+    }
     setLoginError("");
     setShowWelcome(true);
     setLoggedIn(true);
@@ -165,11 +224,12 @@ export default function Home() {
     setLoginStep("phone");
     setLoginError("");
     setShowWelcome(true);
+    setProfileOpen(false);
   }
 
   if (!loggedIn) return <main className="login-page"><section className="login-brand"><div className="brand"><span className="brand-mark">N</span><span>Namma <b>Ticket</b></span></div><div><span className="mini-label">WELCOME</span><h1>Sign in and keep<br/><em>Bengaluru moving.</em></h1><p>Every login starts a fresh passenger account for tickets, passes, Shakti eligibility, refunds, and Namma Rewards.</p></div><div className="login-benefits"><span>✓ Secure OTP access</span><span>✓ Fresh private session</span><span>✓ Earn rewards every ride</span></div></section><section className="login-card"><div className="login-icon">ಜ</div><span className="mini-label">{loginStep === "phone" ? "SIGN IN OR CREATE ACCOUNT" : "VERIFY YOUR NUMBER"}</span><h2>{loginStep === "phone" ? "Your journeys await." : "Enter the 4-digit OTP."}</h2><p>{loginStep === "phone" ? "Use your mobile number to begin a new passenger session." : `A demo OTP was sent to +91 ${phone}.`}</p>{loginStep === "phone" ? <label className="login-field"><span>MOBILE NUMBER</span><div><b>+91</b><input value={phone} onChange={event => setPhone(event.target.value.replace(/\D/g, "").slice(0,10))} inputMode="tel" placeholder="98765 43210" autoFocus/></div></label> : <label className="login-field"><span>ONE-TIME PASSWORD</span><input className="otp-input" value={otp} onChange={event => setOtp(event.target.value.replace(/\D/g, "").slice(0,4))} inputMode="numeric" placeholder="• • • •" autoFocus/><small>Demo OTP: 1234</small></label>}{loginError && <p className="login-error">{loginError}</p>}<button className="primary full" onClick={continueLogin}>{loginStep === "phone" ? "Send OTP →" : "Verify & continue →"}</button>{loginStep === "otp" && <button className="change-number" onClick={() => { setLoginStep("phone"); setOtp(""); setLoginError(""); }}>Change mobile number</button>}<small className="login-terms">Prototype login only. No mobile number or OTP is transmitted or stored.</small></section></main>;
 
-  if (showWelcome) return <main className="welcome-page"><div className="welcome-orbit one"/><div className="welcome-orbit two"/><nav className="welcome-nav"><div className="brand"><span className="brand-mark">N</span><span>Namma <b>Ticket</b></span></div><span>BMTC · Bengaluru</span></nav><section className="welcome-content"><div className="welcome-badge">● NAMMA BENGALURU, NAMMA BUS</div><h1>Welcome aboard.<br/><em>Your city is one tap away.</em></h1><p>Your fresh passenger account is ready. Book BMTC tickets before or after boarding and keep this journey in one simple place.</p><button className="welcome-cta" onClick={() => setShowWelcome(false)}>Start booking <span>→</span></button><div className="welcome-features"><span>✓ Instant QR tickets</span><span>✓ Shakti eligibility</span><span>✓ Kannada &amp; English</span></div></section><div className="welcome-ticket"><div><span className="brand-mark small">N</span><b>Namma Ticket</b><em>● READY</em></div><p>MAJESTIC <span>→</span> KORAMANGALA</p><small>Fast. Simple. Made for Bengaluru.</small></div><footer className="welcome-footer">Safe journeys start here · Namma Ticket</footer></main>;
+  if (showWelcome) return <main className="welcome-page"><div className="welcome-orbit one"/><div className="welcome-orbit two"/><nav className="welcome-nav"><div className="brand"><span className="brand-mark">N</span><span>Namma <b>Ticket</b></span></div><span>BMTC · Bengaluru</span></nav><section className="welcome-content"><div className="welcome-badge">● {returningCustomer ? "WELCOME BACK" : "NAMMA BENGALURU, NAMMA BUS"}</div><h1>{customerName ? `Welcome, ${customerName}.` : "Welcome aboard."}<br/><em>Your city is one tap away.</em></h1><p>{returningCustomer ? "Your saved rewards, pass, verification, and latest journey are ready on this device." : "Your fresh passenger account is ready. Book BMTC tickets before or after boarding and keep this journey in one simple place."}</p><button className="welcome-cta" onClick={() => setShowWelcome(false)}>Start booking <span>→</span></button><div className="welcome-features"><span>✓ Instant QR tickets</span><span>✓ Shakti eligibility</span><span>✓ Kannada &amp; English</span></div></section><div className="welcome-ticket"><div><span className="brand-mark small">N</span><b>Namma Ticket</b><em>● READY</em></div><p>MAJESTIC <span>→</span> KORAMANGALA</p><small>Fast. Simple. Made for Bengaluru.</small></div><footer className="welcome-footer">Safe journeys start here · Namma Ticket</footer></main>;
 
   return (
     <main>
@@ -178,7 +238,7 @@ export default function Home() {
           <span className="brand-mark">N</span>
           <span>Namma <b>Ticket</b></span>
         </button>
-        <div className="nav-links"><a href="#how">{t.how}</a><button className="nav-support" onClick={() => setSupportOpen(true)}>◌ {t.support}</button><button className="lang" onClick={() => setLang(lang === "en" ? "kn" : "en")} aria-label="Change language"><b>{lang === "en" ? "ಕನ್ನಡ" : "English"}</b> <span>⇄</span></button><button className="profile" onClick={signOut} aria-label="Sign out and start a fresh customer login" title="Sign out">↪</button></div>
+        <div className="nav-links"><a href="#how">{t.how}</a><button className="nav-support" onClick={() => setSupportOpen(true)}>◌ {t.support}</button><button className="lang" onClick={() => setLang(lang === "en" ? "kn" : "en")} aria-label="Change language"><b>{lang === "en" ? "ಕನ್ನಡ" : "English"}</b> <span>⇄</span></button><button className="profile" onClick={() => setProfileOpen(true)} aria-label="Open customer profile" title="My profile">{customerName ? customerName.charAt(0).toUpperCase() : "ಜ"}</button></div>
       </nav>
 
       {step === "search" && <>
@@ -214,6 +274,10 @@ export default function Home() {
         <section className="passes-section" id="passes">
           <div className="passes-head"><div><span className="mini-label">BMTC BUS PASSES</span><h2>One pass. A month of Bengaluru.</h2><p>Choose the pass that fits your daily travel and keep it alongside your tickets.</p></div><div className="rewards-balance"><small>NAMMA REWARDS</small><b>{loyaltyPoints} points</b><span>Earn more every ride</span></div></div>
           <div className="pass-grid">{busPasses.map((pass, index) => <article className={index === 1 ? "featured" : ""} key={pass.name}>{index === 1 && <span className="popular">MOST POPULAR</span>}<div className="pass-icon">{index === 2 ? "S" : "N"}</div><span>{pass.validity.toUpperCase()}</span><h3>{pass.name}</h3><p>{pass.details}</p><div className="pass-price"><b>₹{pass.price.toLocaleString("en-IN")}</b><small> / month</small></div><button onClick={() => { setSelectedPass(pass); setPassPurchased(false); }}>Buy this pass →</button></article>)}</div>
+        </section>
+
+        <section className="download-app">
+          <div><span className="mini-label">NAMMA TICKET ON YOUR PHONE</span><h2>Scan. Save. Ride.</h2><p>Scan this code with your phone to open Namma Ticket, then choose “Add to Home Screen” to keep it like an app.</p><div className="download-actions"><button className="primary" onClick={() => { navigator.clipboard?.writeText(window.location.origin); setLinkCopied(true); window.setTimeout(() => setLinkCopied(false), 1800); }}>{linkCopied ? "Link copied ✓" : "Copy app link"}</button><span>No app-store download required</span></div></div><div className="app-qr-card">{appQr ? <img src={appQr} alt="QR code to open and install Namma Ticket"/> : <div className="qr-loading">Preparing QR…</div>}<b>Scan to get Namma Ticket</b><small>Works on Android and iPhone</small></div>
         </section>
 
         <section className="how" id="how">
@@ -252,6 +316,7 @@ export default function Home() {
 
       <button className="support-fab" onClick={() => setSupportOpen(true)} aria-label={t.support}>?</button>
       <button className="chat-fab" onClick={() => setChatOpen(!chatOpen)} aria-label="Open Namma AI assistant">AI</button>
+      {profileOpen && <div className="profile-modal" role="dialog" aria-modal="true" aria-label="Customer profile" onClick={() => setProfileOpen(false)}><div onClick={event => event.stopPropagation()}><button className="modal-close" onClick={() => setProfileOpen(false)} aria-label="Close profile">×</button><div className="profile-avatar">{customerName ? customerName.charAt(0).toUpperCase() : "ಜ"}</div><span className="mini-label">MY NAMMA PROFILE</span><h2>{customerName || "Add your details"}</h2><p>Saved only on this device for mobile number ending in •••• {phone.slice(-4)}.</p><label className="profile-field"><span>FULL NAME</span><input value={customerName} onChange={event => setCustomerName(event.target.value.slice(0,60))} placeholder="Your name"/></label><label className="profile-field"><span>EMAIL (OPTIONAL)</span><input type="email" value={customerEmail} onChange={event => setCustomerEmail(event.target.value.slice(0,100))} placeholder="you@example.com"/></label><div className="profile-summary"><div><small>REWARDS</small><b>{loyaltyPoints} points</b></div><div><small>ACTIVE TICKET</small><b>{hasBookedTicket ? "1 ticket" : "None"}</b></div></div><button className="primary full" onClick={() => setProfileOpen(false)}>Save profile</button><button className="profile-signout" onClick={signOut}>Sign out &amp; switch customer</button><small className="profile-privacy">OTP and Aadhaar numbers are never stored.</small></div></div>}
       {selectedPass && <div className="pass-modal" role="dialog" aria-modal="true" aria-label="Purchase a BMTC bus pass" onClick={() => setSelectedPass(null)}><div onClick={event => event.stopPropagation()}><button className="modal-close" onClick={() => setSelectedPass(null)} aria-label="Close bus pass purchase">×</button>{passPurchased ? <div className="pass-success"><span>✓</span><h2>Your pass is ready.</h2><p><b>{selectedPass.name}</b> is now active for {selectedPass.validity}. You can show its digital QR from My Journeys.</p><div className="pass-reward-earned">+{Math.floor(selectedPass.price / 50)} Namma Rewards points earned</div><button className="primary full" onClick={() => setSelectedPass(null)}>Done</button></div> : <><span className="mini-label">BMTC BUS PASS</span><h2>{selectedPass.name}</h2><p>{selectedPass.details}</p><div className="pass-checkout"><div><small>VALIDITY</small><b>{selectedPass.validity}</b></div><div><small>PASS PRICE</small><b>₹{selectedPass.price.toLocaleString("en-IN")}</b></div></div><p className="pass-note">This prototype purchase creates a demo digital pass. Production use requires BMTC identity verification and a payment provider.</p><button className="primary full" onClick={() => { setLoyaltyPoints(points => points + Math.floor(selectedPass.price / 50)); setPassPurchased(true); }}>Purchase pass securely →</button></>}</div></div>}
       {shaktiOpen && <div className="shakti-modal" role="dialog" aria-modal="true" aria-label="Shakti Aadhaar verification" onClick={() => setShaktiOpen(false)}><div onClick={event => event.stopPropagation()}><button className="modal-close" onClick={() => setShaktiOpen(false)} aria-label="Close verification">×</button>{shaktiVerified ? <div className="verification-success"><span>✓</span><h2>Eligibility verified</h2><p>Free-travel fares will be applied automatically to eligible BMTC ordinary bus journeys in this prototype.</p><button className="primary" onClick={() => setShaktiOpen(false)}>Continue booking</button><button className="remove-verification" onClick={() => { setShaktiVerified(false); setShaktiCategory(""); setAadhaarConsent(false); setShaktiOpen(false); }}>Remove verification</button></div> : <><span className="mini-label">SHAKTI FREE TRAVEL</span><h2>Verify your eligibility</h2><p className="privacy-note">The free-travel claim is available only to women who meet the applicable Shakti scheme rules. Aadhaar information is never saved or sent in this prototype.</p><div className="eligibility-choice"><button className={shaktiCategory === "eligibleWoman" ? "selected" : ""} onClick={() => { setShaktiCategory("eligibleWoman"); setVerificationError(""); }}><b>Woman eligible under Shakti</b><small>Continue to Aadhaar verification</small></button><button className={shaktiCategory === "notEligible" ? "selected ineligible" : ""} onClick={() => { setShaktiCategory("notEligible"); setShaktiVerified(false); setVerificationError("Free travel can only be claimed by eligible women passengers."); }}><b>I am not eligible</b><small>Continue with regular paid booking</small></button></div>{shaktiCategory === "eligibleWoman" && <><label className="aadhaar-field"><span>AADHAAR NUMBER</span><input value={aadhaar} onChange={event => setAadhaar(event.target.value.replace(/\D/g, "").slice(0,12))} inputMode="numeric" autoComplete="off" placeholder="0000 0000 0000"/><small>{aadhaar.length}/12 digits</small></label><label className="consent"><input type="checkbox" checked={aadhaarConsent} onChange={event => setAadhaarConsent(event.target.checked)}/><span>I confirm that I am an eligible woman passenger and consent to identity verification for the Shakti travel benefit.</span></label></>}{verificationError && <p className="verification-error">{verificationError}</p>}{shaktiCategory === "eligibleWoman" && <button className="primary full" onClick={verifyShaktiEligibility}>Verify securely →</button>}{shaktiCategory === "notEligible" && <button className="secondary full" onClick={() => setShaktiOpen(false)}>Continue with regular fare</button>}<div className="data-safety">⌾ No Aadhaar data is stored · Authorized verification required for production</div></>}</div></div>}
       {chatOpen && <aside className="chatbot" aria-label="Namma AI assistant"><div className="chat-head"><span className="bot-avatar">N</span><div><b>Namma AI</b><small>Passenger assistant · Online</small></div><button onClick={() => setChatOpen(false)} aria-label="Close Namma AI">×</button></div><div className="chat-body"><div className="bot-message">{chatAnswer}</div><p>POPULAR QUESTIONS</p><div className="question-chips">{["How do I book a ticket?","Can I book after boarding?","Where is my QR ticket?","How do refunds work?","My payment failed"].map(question => <button key={question} onClick={() => askBot(question)}>{question}<span>→</span></button>)}</div></div><div className="chat-foot"><span>AI answers general questions. For account help, use Support.</span></div></aside>}
